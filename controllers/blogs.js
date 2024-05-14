@@ -1,8 +1,11 @@
 const blogsRouter = require('express').Router()
 const Blog = require('../models/blog')
+const User = require('../models/user')
 
 blogsRouter.get('/', async (request, response) => {
-    const blogs = await Blog.find({})
+    const blogs = await Blog
+        .find({})
+        .populate('user', {username: 1, name: 1})
     response.json(blogs)
 })
 
@@ -23,21 +26,22 @@ blogsRouter.delete('/:id', async (request, response) => {
 })
 
 blogsRouter.post('/', async (request, response) => {
-    const {title, author, url} = request.body
+    const {title, author, url, userId} = request.body
 
-    if ((!title) || (!author) || (!url)) {
-        return response.status(400).json({ error: 'content missing' })
-    }
+    const user = await User.findById(userId)
 
-    const newBlog = new Blog ({
+    const blog = new Blog ({
         title: title,
         author: author,
         url: url,
-        likes: 0
+        likes: 0,
+        user: user.id
     })
 
-    const blogAdded = await newBlog.save()
-    response.status(201).json(blogAdded)
+    const savedBlog = await blog.save()
+    user.blogs = user.blogs.concat(savedBlog._id)
+    await user.save()
+    response.status(201).json(savedBlog)
 })
 
 blogsRouter.put('/:id', async (request, response) => {
